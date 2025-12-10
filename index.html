@@ -9,143 +9,211 @@
     <style>
         body { font-family: 'Prompt', sans-serif; }
         
-        /* Animation สำหรับการแจ้งเตือน */
         @keyframes pulse-warning {
-            0%, 100% { background-color: #fef08a; color: #854d0e; } /* สีเหลือง */
+            0%, 100% { background-color: #fef08a; color: #854d0e; }
             50% { background-color: #fffbeb; color: #a16207; }
         }
         @keyframes blink-critical {
-            0%, 100% { background-color: #fee2e2; color: #b91c1c; } /* สีแดง */
+            0%, 100% { background-color: #fee2e2; color: #b91c1c; }
             50% { background-color: #7f1d1d; color: #ffffff; }
         }
 
-        .warning-mode {
-            animation: pulse-warning 2s infinite;
-        }
-        .critical-mode {
-            animation: blink-critical 0.5s infinite;
-        }
-
-        /* ซ่อน Scrollbar แต่ยังเลื่อนได้ */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
+        .warning-mode { animation: pulse-warning 2s infinite; }
+        .critical-mode { animation: blink-critical 0.5s infinite; }
+        
+        /* Utility class to force hide */
+        .force-hidden { display: none !important; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-gray-900 text-white h-screen flex flex-col overflow-hidden">
 
-    <header class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shrink-0">
+    <header class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shrink-0 z-50 relative shadow-md">
         <div>
             <h1 class="text-xl md:text-2xl font-bold text-blue-400">⏱️ ระบบจับเวลาการสอน</h1>
             <p class="text-xs md:text-sm text-gray-400">พัฒนาโดย ครูนนทพัทธ์ หิรัญเรือง</p>
         </div>
-        <div id="totalTimeDisplay" class="text-lg md:text-xl font-mono text-green-400 font-bold hidden">
-            รวม: 00:00:00
+        <div class="bg-gray-900 border border-gray-600 rounded-lg px-4 py-2 flex flex-col items-end">
+            <span class="text-xs text-gray-400">เวลารวมคงเหลือ</span>
+            <span id="globalTimerDisplay" class="text-xl md:text-2xl font-mono text-green-400 font-bold leading-none">00:00:00</span>
         </div>
     </header>
 
-    <main id="setupScreen" class="flex-1 overflow-y-auto p-4 md:p-8 max-w-4xl mx-auto w-full">
+    <main id="setupScreen" class="flex-1 overflow-y-auto p-4 md:p-8 max-w-4xl mx-auto w-full relative z-10">
         <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
-            <h2 class="text-xl mb-4 font-semibold text-gray-200">⚙️ ตั้งค่าช่วงเวลา</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-200">⚙️ ตั้งค่าช่วงเวลา</h2>
+                <button onclick="clearStorage()" class="text-xs text-red-400 hover:text-red-300 underline">ล้างค่าที่บันทึกไว้</button>
+            </div>
             
-            <div class="mb-6 flex items-center gap-4">
+            <div class="mb-6 flex items-center gap-4 flex-wrap">
                 <label class="text-gray-300">จำนวนช่วง:</label>
-                <select id="segmentCount" class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500" onchange="generateInputs()">
+                <select id="segmentCount" class="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500" onchange="handleCountChange()">
                     </select>
-                <button onclick="runDemo()" class="ml-auto bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded shadow transition text-sm">
-                    🎬 โหมดตัวอย่าง
+                <button onclick="runDemo()" class="ml-auto bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded shadow transition text-sm flex items-center gap-2">
+                    <span>🎬</span> โหมดตัวอย่าง
                 </button>
             </div>
 
             <div id="inputsContainer" class="space-y-3 mb-6 max-h-[50vh] overflow-y-auto no-scrollbar pr-2">
                 </div>
 
-            <div class="flex justify-between items-center border-t border-gray-700 pt-4">
+            <div class="flex flex-col md:flex-row justify-between items-center border-t border-gray-700 pt-4 gap-4">
                 <div class="text-gray-400">
-                    เวลารวมทั้งหมด: <span id="setupTotalTime" class="text-white font-bold text-lg">0 นาที</span>
+                    ตั้งค่ารวม: <span id="setupTotalTime" class="text-white font-bold text-lg">0 นาที</span>
                 </div>
-                <button onclick="startTimer()" class="bg-green-600 hover:bg-green-700 text-white text-lg px-8 py-3 rounded-lg shadow-lg font-bold transition transform hover:scale-105">
+                <button onclick="startTimer()" class="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white text-lg px-8 py-3 rounded-lg shadow-lg font-bold transition transform hover:scale-105">
                     🚀 เริ่มจับเวลา
                 </button>
             </div>
         </div>
     </main>
 
-    <main id="timerScreen" class="hidden flex-1 flex flex-col items-center justify-center relative transition-colors duration-500">
+    <main id="timerScreen" class="force-hidden flex-1 flex flex-col items-center justify-center relative transition-colors duration-500 z-0">
         
         <div class="absolute top-10 left-0 right-0 text-center px-4">
             <h2 class="text-gray-400 text-xl md:text-2xl mb-2">ช่วงที่ <span id="currentSegmentNum">1</span>/<span id="totalSegmentNum">5</span></h2>
-            <h1 id="currentSegmentName" class="text-4xl md:text-6xl font-bold text-white leading-tight drop-shadow-lg">
+            <h1 id="currentSegmentName" class="text-3xl md:text-5xl font-bold text-white leading-tight drop-shadow-lg break-words max-w-4xl mx-auto">
                 ชื่อช่วงกิจกรรม
             </h1>
         </div>
 
-        <div class="text-[15vw] md:text-[20vh] font-mono font-bold leading-none tracking-wider drop-shadow-2xl tabular-nums" id="timerDisplay">
+        <div class="text-[18vw] md:text-[22vh] font-mono font-bold leading-none tracking-wider drop-shadow-2xl tabular-nums my-4" id="timerDisplay">
             00:00
         </div>
 
-        <div class="w-full max-w-3xl px-8 mt-8">
-            <div class="w-full bg-gray-700 rounded-full h-4 overflow-hidden">
+        <div class="w-full max-w-3xl px-8 mt-4 md:mt-8 relative z-20">
+            <div class="w-full bg-gray-700 rounded-full h-4 overflow-hidden shadow-inner">
                 <div id="progressBar" class="bg-blue-500 h-4 rounded-full transition-all duration-1000" style="width: 100%"></div>
             </div>
         </div>
 
-        <div class="absolute bottom-10 flex gap-4 opacity-50 hover:opacity-100 transition-opacity">
-            <button onclick="togglePause()" id="pauseBtn" class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-full">หยุดชั่วคราว</button>
-            <button onclick="skipSegment()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full">ข้ามช่วงถัดไป</button>
-            <button onclick="resetSystem()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full">จบการสอน</button>
+        <div class="absolute bottom-10 flex gap-4 opacity-70 hover:opacity-100 transition-opacity z-50">
+            <button onclick="togglePause()" id="pauseBtn" class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-full shadow-lg font-bold min-w-[120px]">หยุด</button>
+            <button onclick="skipSegment()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full shadow-lg font-bold">ข้ามช่วง</button>
+            <button onclick="resetSystem()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-full shadow-lg font-bold">จบการสอน</button>
         </div>
     </main>
 
     <script>
-        // --- Configuration ---
+        // --- Configuration & State ---
         const MAX_SEGMENTS = 15;
+        const STORAGE_KEY = 'teachingTimerData_v2';
+        
         let segments = [];
         let currentSegmentIndex = 0;
-        let timeLeft = 0; // seconds
-        let totalTimeInitial = 0; // seconds for current segment
+        let timeLeft = 0; // seconds for current segment
         let timerInterval = null;
         let isPaused = false;
         let isDemo = false;
 
         // --- Init ---
         window.onload = function() {
+            initSelectOption();
+            loadFromStorage(); // Load saved data
+        }
+
+        function initSelectOption() {
             const select = document.getElementById('segmentCount');
+            select.innerHTML = '';
             for(let i=1; i<=MAX_SEGMENTS; i++) {
                 let opt = document.createElement('option');
                 opt.value = i;
                 opt.innerText = `${i} ช่วง`;
                 select.appendChild(opt);
             }
-            select.value = 3; // Default
-            generateInputs();
         }
 
-        // --- Setup Logic ---
-        function generateInputs() {
-            const count = document.getElementById('segmentCount').value;
+        // --- Storage & Inputs Logic ---
+        function handleCountChange() {
+            generateInputs();
+            saveToStorage();
+        }
+
+        function generateInputs(savedData = null) {
+            const count = parseInt(document.getElementById('segmentCount').value);
             const container = document.getElementById('inputsContainer');
+            
+            // If regenerating, try to keep current values if not provided by savedData
+            const currentValues = savedData ? [] : getCurrentInputValues(); 
+
             container.innerHTML = '';
 
-            for(let i=1; i<=count; i++) {
+            for(let i=0; i<count; i++) {
                 const row = document.createElement('div');
                 row.className = "flex flex-col md:flex-row gap-2 items-start md:items-center bg-gray-700/50 p-3 rounded hover:bg-gray-700 transition";
+                
+                // Determine values: Saved > Current > Default
+                let nameVal = '';
+                let minVal = '';
+                let secVal = '00';
+
+                if (savedData && savedData[i]) {
+                    nameVal = savedData[i].name;
+                    minVal = savedData[i].min;
+                    secVal = savedData[i].sec;
+                } else if (currentValues[i]) {
+                    nameVal = currentValues[i].name;
+                    minVal = currentValues[i].min;
+                    secVal = currentValues[i].sec;
+                }
+
                 row.innerHTML = `
-                    <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded w-8 text-center">${i}</span>
-                    <input type="text" placeholder="ชื่อช่วงกิจกรรม (เช่น ขั้นนำ, สอน)" class="segment-name flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:border-blue-500 focus:outline-none w-full">
-                    <div class="flex items-center gap-2">
-                        <input type="number" min="0" placeholder="นาที" class="segment-min w-20 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-center focus:border-blue-500 focus:outline-none" oninput="calculateTotalSetupTime()">
+                    <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded w-8 text-center shrink-0">${i+1}</span>
+                    <input type="text" value="${nameVal}" placeholder="ชื่อกิจกรรม (เช่น ขั้นนำ)" class="segment-name flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:border-blue-500 focus:outline-none w-full" oninput="saveToStorage()">
+                    <div class="flex items-center gap-2 shrink-0">
+                        <input type="number" value="${minVal}" min="0" placeholder="0" class="segment-min w-16 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-center focus:border-blue-500 focus:outline-none" oninput="calculateTotalSetupTime(); saveToStorage()">
                         <span class="text-gray-400">:</span>
-                        <input type="number" min="0" max="59" placeholder="วิ" value="00" class="segment-sec w-16 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-center focus:border-blue-500 focus:outline-none" oninput="calculateTotalSetupTime()">
+                        <input type="number" value="${secVal}" min="0" max="59" placeholder="00" class="segment-sec w-14 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-center focus:border-blue-500 focus:outline-none" oninput="calculateTotalSetupTime(); saveToStorage()">
                     </div>
                 `;
                 container.appendChild(row);
             }
             calculateTotalSetupTime();
+        }
+
+        function getCurrentInputValues() {
+            const names = document.querySelectorAll('.segment-name');
+            const mins = document.querySelectorAll('.segment-min');
+            const secs = document.querySelectorAll('.segment-sec');
+            let data = [];
+            names.forEach((el, i) => {
+                data.push({
+                    name: el.value,
+                    min: mins[i].value,
+                    sec: secs[i].value
+                });
+            });
+            return data;
+        }
+
+        function saveToStorage() {
+            if (isDemo) return; // Don't save demo data
+            const count = document.getElementById('segmentCount').value;
+            const data = getCurrentInputValues();
+            const payload = { count, data };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        }
+
+        function loadFromStorage() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                document.getElementById('segmentCount').value = parsed.count;
+                generateInputs(parsed.data);
+            } else {
+                document.getElementById('segmentCount').value = 3;
+                generateInputs();
+            }
+        }
+
+        function clearStorage() {
+            if(confirm('ต้องการล้างค่าที่บันทึกไว้ทั้งหมดหรือไม่?')) {
+                localStorage.removeItem(STORAGE_KEY);
+                location.reload();
+            }
         }
 
         function calculateTotalSetupTime() {
@@ -160,17 +228,21 @@
             });
 
             const display = formatTime(totalSeconds);
+            // Update Setup Total
             document.getElementById('setupTotalTime').innerText = `${display.m} นาที ${display.s} วินาที`;
-            return totalSeconds;
+            
+            // Update Global Header Total (Static view)
+            document.getElementById('globalTimerDisplay').innerText = 
+                `${String(Math.floor(totalSeconds/3600)).padStart(2,'0')}:${String(display.m % 60).padStart(2,'0')}:${String(display.s).padStart(2,'0')}`;
         }
 
         // --- Timer Logic ---
         function startTimer() {
+            // Collect Data
             segments = [];
             const names = document.querySelectorAll('.segment-name');
             const mins = document.querySelectorAll('.segment-min');
             const secs = document.querySelectorAll('.segment-sec');
-
             let hasTime = false;
 
             names.forEach((nameInput, index) => {
@@ -180,7 +252,8 @@
                 
                 segments.push({
                     name: nameInput.value || `ช่วงที่ ${index + 1}`,
-                    duration: (m * 60) + s
+                    duration: (m * 60) + s,
+                    originalDuration: (m * 60) + s
                 });
             });
 
@@ -189,10 +262,9 @@
                 return;
             }
 
-            // UI Switch
-            document.getElementById('setupScreen').classList.add('hidden');
-            document.getElementById('timerScreen').classList.remove('hidden');
-            document.getElementById('totalTimeDisplay').classList.remove('hidden');
+            // Switch UI
+            document.getElementById('setupScreen').classList.add('force-hidden');
+            document.getElementById('timerScreen').classList.remove('force-hidden');
 
             currentSegmentIndex = 0;
             loadSegment(currentSegmentIndex);
@@ -206,7 +278,6 @@
 
             const seg = segments[index];
             timeLeft = seg.duration;
-            totalTimeInitial = seg.duration;
 
             document.getElementById('currentSegmentNum').innerText = index + 1;
             document.getElementById('totalSegmentNum').innerText = segments.length;
@@ -217,7 +288,7 @@
             
             if (timerInterval) clearInterval(timerInterval);
             isPaused = false;
-            document.getElementById('pauseBtn').innerText = "หยุดชั่วคราว";
+            document.getElementById('pauseBtn').innerText = "หยุด";
             
             timerInterval = setInterval(tick, 1000);
         }
@@ -226,12 +297,14 @@
             if (isPaused) return;
 
             timeLeft--;
+            segments[currentSegmentIndex].duration = timeLeft; // Update stored duration for total calc
+
             updateDisplay();
             checkWarnings();
 
             if (timeLeft <= 0) {
                 clearInterval(timerInterval);
-                playAlarm(); // Optional sound
+                playAlarm();
                 setTimeout(() => {
                     currentSegmentIndex++;
                     loadSegment(currentSegmentIndex);
@@ -239,17 +312,44 @@
             }
         }
 
+        function updateDisplay() {
+            // Main Timer
+            const timeObj = formatTime(timeLeft);
+            document.getElementById('timerDisplay').innerText = 
+                `${String(timeObj.m).padStart(2,'0')}:${String(timeObj.s).padStart(2,'0')}`;
+
+            // Progress Bar
+            const totalInit = segments[currentSegmentIndex].originalDuration;
+            const percent = totalInit > 0 ? (timeLeft / totalInit) * 100 : 0;
+            document.getElementById('progressBar').style.width = `${percent}%`;
+
+            // Global Total Time Logic (Real-time update)
+            calculateGlobalRemaining();
+        }
+
+        function calculateGlobalRemaining() {
+            // Time left in current + Sum of all future segments
+            let totalRemaining = timeLeft;
+            for(let i = currentSegmentIndex + 1; i < segments.length; i++) {
+                totalRemaining += segments[i].originalDuration; // use original because future ones haven't started
+            }
+
+            const h = Math.floor(totalRemaining / 3600);
+            const m = Math.floor((totalRemaining % 3600) / 60);
+            const s = totalRemaining % 60;
+
+            document.getElementById('globalTimerDisplay').innerText = 
+                `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        }
+
         function checkWarnings() {
             const screen = document.getElementById('timerScreen');
-            const text = document.getElementById('timerDisplay');
             
-            // 2 Minutes Warning (120s)
             if (timeLeft <= 120 && timeLeft > 30) {
-                screen.className = "flex-1 flex flex-col items-center justify-center relative warning-mode transition-colors duration-500";
+                screen.className = "flex-1 flex flex-col items-center justify-center relative warning-mode transition-colors duration-500 z-0";
             } 
-            // 30 Seconds Critical
             else if (timeLeft <= 30) {
-                screen.className = "flex-1 flex flex-col items-center justify-center relative critical-mode";
+                screen.className = "flex-1 flex flex-col items-center justify-center relative critical-mode z-0";
             }
             else {
                 resetStyles();
@@ -258,21 +358,7 @@
 
         function resetStyles() {
             const screen = document.getElementById('timerScreen');
-            // Reset to dark theme
-            screen.className = "flex-1 flex flex-col items-center justify-center relative bg-gray-900 text-white transition-colors duration-500";
-        }
-
-        function updateDisplay() {
-            const timeObj = formatTime(timeLeft);
-            // Format 00:00
-            document.getElementById('timerDisplay').innerText = 
-                `${String(timeObj.m).padStart(2,'0')}:${String(timeObj.s).padStart(2,'0')}`;
-
-            // Progress Bar
-            const percent = (timeLeft / totalTimeInitial) * 100;
-            document.getElementById('progressBar').style.width = `${percent}%`;
-
-            // Update Total Remaining (Optional calculation could be added here)
+            screen.className = "flex-1 flex flex-col items-center justify-center relative bg-gray-900 text-white transition-colors duration-500 z-0";
         }
 
         function formatTime(seconds) {
@@ -283,7 +369,10 @@
 
         function togglePause() {
             isPaused = !isPaused;
-            document.getElementById('pauseBtn').innerText = isPaused ? "เล่นต่อ" : "หยุดชั่วคราว";
+            document.getElementById('pauseBtn').innerText = isPaused ? "เล่นต่อ" : "หยุด";
+            document.getElementById('pauseBtn').className = isPaused 
+                ? "bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full shadow-lg font-bold min-w-[120px]"
+                : "bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-full shadow-lg font-bold min-w-[120px]";
         }
 
         function skipSegment() {
@@ -294,53 +383,66 @@
 
         function resetSystem() {
             clearInterval(timerInterval);
-            document.getElementById('timerScreen').classList.add('hidden');
-            document.getElementById('totalTimeDisplay').classList.add('hidden');
-            document.getElementById('setupScreen').classList.remove('hidden');
+            // Force Clear UI
+            document.getElementById('timerScreen').classList.add('force-hidden');
+            document.getElementById('setupScreen').classList.remove('force-hidden');
+            
             resetStyles();
+            
+            // Reload storage to restore original input values (in case Demo mode messed them up)
+            if (isDemo) {
+                isDemo = false;
+                loadFromStorage();
+            } else {
+                calculateTotalSetupTime(); // Recalculate based on existing inputs
+            }
         }
 
         function finishAll() {
             resetStyles();
             document.getElementById('currentSegmentName').innerText = "🎉 จบการสอน";
             document.getElementById('timerDisplay').innerText = "00:00";
+            document.getElementById('globalTimerDisplay').innerText = "00:00:00";
             document.getElementById('progressBar').style.width = "0%";
-            // Play sound?
+            playAlarm();
         }
 
         // --- Demo Mode ---
         function runDemo() {
             isDemo = true;
-            // Setup fake data
+            // Fake Data directly into inputs to visualize flow
+            // But we don't save this to storage
             document.getElementById('segmentCount').value = 2;
-            generateInputs();
             
-            const names = document.querySelectorAll('.segment-name');
-            const mins = document.querySelectorAll('.segment-min');
-            const secs = document.querySelectorAll('.segment-sec');
+            // Manually populate UI for demo
+            const container = document.getElementById('inputsContainer');
+            container.innerHTML = ''; // Clear current inputs temporarily
+            
+            // Create Demo Inputs Programmatically
+            // ... (Skipping full render for brevity, just pushing logic data)
+            
+            // Direct Start logic for Demo
+            segments = [
+                { name: "ตัวอย่าง: ขั้นนำ (เตือนเหลือง)", duration: 125, originalDuration: 125 }, // 2m 05s
+                { name: "ตัวอย่าง: สรุป (เตือนแดง)", duration: 35, originalDuration: 35 }    // 35s
+            ];
 
-            // Segment 1: Demo Warning (Set to 2 mins 5 secs)
-            names[0].value = "ตัวอย่างช่วงที่ 1 (ขั้นนำ)";
-            mins[0].value = 2;
-            secs[0].value = 5; // Will trigger warning in 5 seconds
+            // Switch UI
+            document.getElementById('setupScreen').classList.add('force-hidden');
+            document.getElementById('timerScreen').classList.remove('force-hidden');
 
-            // Segment 2: Demo Critical (Set to 35 secs)
-            names[1].value = "ตัวอย่างช่วงที่ 2 (สรุป)";
-            mins[1].value = 0;
-            secs[1].value = 35; // Will trigger critical blink in 5 seconds
-
-            startTimer();
+            currentSegmentIndex = 0;
+            loadSegment(currentSegmentIndex);
         }
 
         function playAlarm() {
-            // Simple Beep using Web Audio API (No external file needed)
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // A4
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); 
             gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
             oscillator.start();
             oscillator.stop(audioCtx.currentTime + 0.5);
