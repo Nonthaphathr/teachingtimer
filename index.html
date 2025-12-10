@@ -21,16 +21,13 @@
         .warning-mode { animation: pulse-warning 2s infinite; }
         .critical-mode { animation: blink-critical 0.5s infinite; }
         
-        /* Utility class to force hide */
-        .force-hidden { display: none !important; }
-        
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-gray-900 text-white h-screen flex flex-col overflow-hidden">
 
-    <header class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shrink-0 z-50 relative shadow-md">
+    <header class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shrink-0 z-50 shadow-md">
         <div>
             <h1 class="text-xl md:text-2xl font-bold text-blue-400">⏱️ ระบบจับเวลาการสอน</h1>
             <p class="text-xs md:text-sm text-gray-400">พัฒนาโดย ครูนนทพัทธ์ หิรัญเรือง</p>
@@ -42,10 +39,10 @@
     </header>
 
     <main id="setupScreen" class="flex-1 overflow-y-auto p-4 md:p-8 max-w-4xl mx-auto w-full relative z-10">
-        <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
+        <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 mb-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-semibold text-gray-200">⚙️ ตั้งค่าช่วงเวลา</h2>
-                <button onclick="clearStorage()" class="text-xs text-red-400 hover:text-red-300 underline">ล้างค่าที่บันทึกไว้</button>
+                <button onclick="clearStorage()" class="text-xs text-red-400 hover:text-red-300 underline">ล้างค่าเริ่มต้นใหม่</button>
             </div>
             
             <div class="mb-6 flex items-center gap-4 flex-wrap">
@@ -57,8 +54,15 @@
                 </button>
             </div>
 
-            <div id="inputsContainer" class="space-y-3 mb-6 max-h-[50vh] overflow-y-auto no-scrollbar pr-2">
+            <div id="inputsContainer" class="space-y-3 mb-6 max-h-[40vh] overflow-y-auto no-scrollbar pr-2">
                 </div>
+            
+            <div class="mb-6 border-t border-gray-700 pt-4">
+                <label class="text-gray-300 mb-2 block">📝 โน้ตพิเศษ (ข้อความเตือนความจำ):</label>
+                <textarea id="specialNoteInput" placeholder="พิมพ์ข้อความที่ต้องการให้แสดงตลอดการสอน เช่น 'อย่าลืมแจกใบงานตอนท้าย'..." 
+                    class="w-full bg-gray-700 border border-gray-600 rounded p-3 text-white focus:outline-none focus:border-blue-500 h-20 resize-none"
+                    oninput="saveToStorage()"></textarea>
+            </div>
 
             <div class="flex flex-col md:flex-row justify-between items-center border-t border-gray-700 pt-4 gap-4">
                 <div class="text-gray-400">
@@ -71,48 +75,61 @@
         </div>
     </main>
 
-    <main id="timerScreen" class="force-hidden flex-1 flex flex-col items-center justify-center relative transition-colors duration-500 z-0">
+    <main id="timerScreen" class="hidden flex-1 flex-col items-center justify-center relative transition-colors duration-500 z-0 h-full w-full absolute inset-0 top-[85px]">
         
-        <div class="absolute top-10 left-0 right-0 text-center px-4">
+        <div class="text-center px-4 mt-8">
             <h2 class="text-gray-400 text-xl md:text-2xl mb-2">ช่วงที่ <span id="currentSegmentNum">1</span>/<span id="totalSegmentNum">5</span></h2>
-            <h1 id="currentSegmentName" class="text-3xl md:text-5xl font-bold text-white leading-tight drop-shadow-lg break-words max-w-4xl mx-auto">
-                ชื่อช่วงกิจกรรม
+            <h1 id="currentSegmentName" class="text-3xl md:text-5xl font-bold text-white leading-tight drop-shadow-lg break-words max-w-5xl mx-auto">
+                ...
             </h1>
         </div>
 
-        <div class="text-[18vw] md:text-[22vh] font-mono font-bold leading-none tracking-wider drop-shadow-2xl tabular-nums my-4" id="timerDisplay">
-            00:00
+        <div class="flex-1 flex items-center justify-center">
+            <div class="text-[18vw] md:text-[22vh] font-mono font-bold leading-none tracking-wider drop-shadow-2xl tabular-nums" id="timerDisplay">
+                00:00
+            </div>
         </div>
 
-        <div class="w-full max-w-3xl px-8 mt-4 md:mt-8 relative z-20">
+        <div id="displaySpecialNote" class="text-yellow-400 text-lg md:text-2xl font-semibold bg-black/30 px-6 py-2 rounded-full mb-4 hidden animate-pulse">
+            </div>
+
+        <div class="w-full max-w-4xl px-8 mb-6 relative z-20">
             <div class="w-full bg-gray-700 rounded-full h-4 overflow-hidden shadow-inner">
                 <div id="progressBar" class="bg-blue-500 h-4 rounded-full transition-all duration-1000" style="width: 100%"></div>
             </div>
         </div>
 
-        <div class="absolute bottom-10 flex gap-4 opacity-70 hover:opacity-100 transition-opacity z-50">
-            <button onclick="togglePause()" id="pauseBtn" class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-full shadow-lg font-bold min-w-[120px]">หยุด</button>
-            <button onclick="skipSegment()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full shadow-lg font-bold">ข้ามช่วง</button>
-            <button onclick="resetSystem()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-full shadow-lg font-bold">จบการสอน</button>
+        <div class="mb-8 flex gap-4 opacity-80 hover:opacity-100 transition-opacity z-50">
+            <button onclick="togglePause()" id="pauseBtn" class="bg-yellow-600 hover:bg-yellow-700 text-white px-8 py-4 rounded-full shadow-lg font-bold text-lg min-w-[140px]">หยุด</button>
+            <button onclick="skipSegment()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-full shadow-lg font-bold text-lg">ข้ามช่วง</button>
+            <button onclick="resetSystem()" class="bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-full shadow-lg font-bold text-lg">จบการสอน</button>
         </div>
     </main>
 
     <script>
-        // --- Configuration & State ---
+        // --- Config & State ---
         const MAX_SEGMENTS = 15;
-        const STORAGE_KEY = 'teachingTimerData_v2';
+        const STORAGE_KEY = 'teachingTimerData_v3'; // เปลี่ยน Key เพื่อเคลียร์ค่าเก่าที่อาจบั๊ก
         
         let segments = [];
         let currentSegmentIndex = 0;
-        let timeLeft = 0; // seconds for current segment
+        let timeLeft = 0; 
         let timerInterval = null;
         let isPaused = false;
         let isDemo = false;
 
+        // --- DOM Elements (Cache for performance) ---
+        const setupScreen = document.getElementById('setupScreen');
+        const timerScreen = document.getElementById('timerScreen');
+
         // --- Init ---
         window.onload = function() {
             initSelectOption();
-            loadFromStorage(); // Load saved data
+            loadFromStorage();
+            
+            // Force Setup Screen to show first
+            setupScreen.style.display = 'block';
+            timerScreen.style.display = 'none';
         }
 
         function initSelectOption() {
@@ -126,7 +143,18 @@
             }
         }
 
-        // --- Storage & Inputs Logic ---
+        // --- View Switching (The Fix for Overlap) ---
+        function showSetupView() {
+            timerScreen.style.display = 'none'; // ซ่อนหน้าจับเวลา
+            setupScreen.style.display = 'block'; // แสดงหน้าตั้งค่า
+        }
+
+        function showTimerView() {
+            setupScreen.style.display = 'none'; // ซ่อนหน้าตั้งค่า
+            timerScreen.style.display = 'flex'; // แสดงหน้าจับเวลา (ใช้ flex เพื่อจัดกลาง)
+        }
+
+        // --- Data Handling ---
         function handleCountChange() {
             generateInputs();
             saveToStorage();
@@ -135,8 +163,6 @@
         function generateInputs(savedData = null) {
             const count = parseInt(document.getElementById('segmentCount').value);
             const container = document.getElementById('inputsContainer');
-            
-            // If regenerating, try to keep current values if not provided by savedData
             const currentValues = savedData ? [] : getCurrentInputValues(); 
 
             container.innerHTML = '';
@@ -145,28 +171,21 @@
                 const row = document.createElement('div');
                 row.className = "flex flex-col md:flex-row gap-2 items-start md:items-center bg-gray-700/50 p-3 rounded hover:bg-gray-700 transition";
                 
-                // Determine values: Saved > Current > Default
-                let nameVal = '';
-                let minVal = '';
-                let secVal = '00';
+                let nameVal = '', minVal = '', secVal = '00';
 
                 if (savedData && savedData[i]) {
-                    nameVal = savedData[i].name;
-                    minVal = savedData[i].min;
-                    secVal = savedData[i].sec;
+                    nameVal = savedData[i].name; minVal = savedData[i].min; secVal = savedData[i].sec;
                 } else if (currentValues[i]) {
-                    nameVal = currentValues[i].name;
-                    minVal = currentValues[i].min;
-                    secVal = currentValues[i].sec;
+                    nameVal = currentValues[i].name; minVal = currentValues[i].min; secVal = currentValues[i].sec;
                 }
 
                 row.innerHTML = `
                     <span class="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded w-8 text-center shrink-0">${i+1}</span>
-                    <input type="text" value="${nameVal}" placeholder="ชื่อกิจกรรม (เช่น ขั้นนำ)" class="segment-name flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:border-blue-500 focus:outline-none w-full" oninput="saveToStorage()">
+                    <input type="text" value="${nameVal}" placeholder="ชื่อกิจกรรม" class="segment-name flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white w-full" oninput="saveToStorage()">
                     <div class="flex items-center gap-2 shrink-0">
-                        <input type="number" value="${minVal}" min="0" placeholder="0" class="segment-min w-16 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-center focus:border-blue-500 focus:outline-none" oninput="calculateTotalSetupTime(); saveToStorage()">
+                        <input type="number" value="${minVal}" min="0" placeholder="0" class="segment-min w-16 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-center" oninput="calculateTotalSetupTime(); saveToStorage()">
                         <span class="text-gray-400">:</span>
-                        <input type="number" value="${secVal}" min="0" max="59" placeholder="00" class="segment-sec w-14 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-center focus:border-blue-500 focus:outline-none" oninput="calculateTotalSetupTime(); saveToStorage()">
+                        <input type="number" value="${secVal}" min="0" max="59" placeholder="00" class="segment-sec w-14 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-center" oninput="calculateTotalSetupTime(); saveToStorage()">
                     </div>
                 `;
                 container.appendChild(row);
@@ -180,20 +199,17 @@
             const secs = document.querySelectorAll('.segment-sec');
             let data = [];
             names.forEach((el, i) => {
-                data.push({
-                    name: el.value,
-                    min: mins[i].value,
-                    sec: secs[i].value
-                });
+                data.push({ name: el.value, min: mins[i].value, sec: secs[i].value });
             });
             return data;
         }
 
         function saveToStorage() {
-            if (isDemo) return; // Don't save demo data
+            if (isDemo) return;
             const count = document.getElementById('segmentCount').value;
+            const note = document.getElementById('specialNoteInput').value; // Save Note
             const data = getCurrentInputValues();
-            const payload = { count, data };
+            const payload = { count, data, note };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
         }
 
@@ -201,7 +217,8 @@
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
                 const parsed = JSON.parse(saved);
-                document.getElementById('segmentCount').value = parsed.count;
+                document.getElementById('segmentCount').value = parsed.count || 3;
+                document.getElementById('specialNoteInput').value = parsed.note || ""; // Load Note
                 generateInputs(parsed.data);
             } else {
                 document.getElementById('segmentCount').value = 3;
@@ -210,7 +227,7 @@
         }
 
         function clearStorage() {
-            if(confirm('ต้องการล้างค่าที่บันทึกไว้ทั้งหมดหรือไม่?')) {
+            if(confirm('ต้องการล้างค่าทั้งหมดและรีเซ็ตระบบหรือไม่?')) {
                 localStorage.removeItem(STORAGE_KEY);
                 location.reload();
             }
@@ -228,17 +245,13 @@
             });
 
             const display = formatTime(totalSeconds);
-            // Update Setup Total
             document.getElementById('setupTotalTime').innerText = `${display.m} นาที ${display.s} วินาที`;
-            
-            // Update Global Header Total (Static view)
             document.getElementById('globalTimerDisplay').innerText = 
                 `${String(Math.floor(totalSeconds/3600)).padStart(2,'0')}:${String(display.m % 60).padStart(2,'0')}:${String(display.s).padStart(2,'0')}`;
         }
 
         // --- Timer Logic ---
         function startTimer() {
-            // Collect Data
             segments = [];
             const names = document.querySelectorAll('.segment-name');
             const mins = document.querySelectorAll('.segment-min');
@@ -257,14 +270,20 @@
                 });
             });
 
-            if (!hasTime && !isDemo) {
-                alert("กรุณาระบุเวลาอย่างน้อย 1 ช่วงครับ");
-                return;
+            if (!hasTime && !isDemo) { alert("กรุณาระบุเวลาอย่างน้อย 1 ช่วงครับ"); return; }
+
+            // Handle Note
+            const noteText = document.getElementById('specialNoteInput').value;
+            const noteDisplay = document.getElementById('displaySpecialNote');
+            if (noteText.trim() !== "") {
+                noteDisplay.innerText = `📝 ${noteText}`;
+                noteDisplay.classList.remove('hidden');
+            } else {
+                noteDisplay.classList.add('hidden');
             }
 
-            // Switch UI
-            document.getElementById('setupScreen').classList.add('force-hidden');
-            document.getElementById('timerScreen').classList.remove('force-hidden');
+            // Switch to Timer View
+            showTimerView();
 
             currentSegmentIndex = 0;
             loadSegment(currentSegmentIndex);
@@ -297,7 +316,7 @@
             if (isPaused) return;
 
             timeLeft--;
-            segments[currentSegmentIndex].duration = timeLeft; // Update stored duration for total calc
+            segments[currentSegmentIndex].duration = timeLeft;
 
             updateDisplay();
             checkWarnings();
@@ -313,27 +332,22 @@
         }
 
         function updateDisplay() {
-            // Main Timer
             const timeObj = formatTime(timeLeft);
             document.getElementById('timerDisplay').innerText = 
                 `${String(timeObj.m).padStart(2,'0')}:${String(timeObj.s).padStart(2,'0')}`;
 
-            // Progress Bar
             const totalInit = segments[currentSegmentIndex].originalDuration;
             const percent = totalInit > 0 ? (timeLeft / totalInit) * 100 : 0;
             document.getElementById('progressBar').style.width = `${percent}%`;
 
-            // Global Total Time Logic (Real-time update)
             calculateGlobalRemaining();
         }
 
         function calculateGlobalRemaining() {
-            // Time left in current + Sum of all future segments
             let totalRemaining = timeLeft;
             for(let i = currentSegmentIndex + 1; i < segments.length; i++) {
-                totalRemaining += segments[i].originalDuration; // use original because future ones haven't started
+                totalRemaining += segments[i].originalDuration;
             }
-
             const h = Math.floor(totalRemaining / 3600);
             const m = Math.floor((totalRemaining % 3600) / 60);
             const s = totalRemaining % 60;
@@ -344,21 +358,18 @@
 
         function checkWarnings() {
             const screen = document.getElementById('timerScreen');
-            
             if (timeLeft <= 120 && timeLeft > 30) {
-                screen.className = "flex-1 flex flex-col items-center justify-center relative warning-mode transition-colors duration-500 z-0";
-            } 
-            else if (timeLeft <= 30) {
-                screen.className = "flex-1 flex flex-col items-center justify-center relative critical-mode z-0";
-            }
-            else {
+                screen.className = "flex-1 flex flex-col items-center justify-center relative warning-mode transition-colors duration-500 z-0 h-full w-full absolute inset-0 top-[85px]";
+            } else if (timeLeft <= 30) {
+                screen.className = "flex-1 flex flex-col items-center justify-center relative critical-mode z-0 h-full w-full absolute inset-0 top-[85px]";
+            } else {
                 resetStyles();
             }
         }
 
         function resetStyles() {
             const screen = document.getElementById('timerScreen');
-            screen.className = "flex-1 flex flex-col items-center justify-center relative bg-gray-900 text-white transition-colors duration-500 z-0";
+            screen.className = "flex-1 flex flex-col items-center justify-center relative bg-gray-900 text-white transition-colors duration-500 z-0 h-full w-full absolute inset-0 top-[85px]";
         }
 
         function formatTime(seconds) {
@@ -369,10 +380,11 @@
 
         function togglePause() {
             isPaused = !isPaused;
-            document.getElementById('pauseBtn').innerText = isPaused ? "เล่นต่อ" : "หยุด";
-            document.getElementById('pauseBtn').className = isPaused 
-                ? "bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full shadow-lg font-bold min-w-[120px]"
-                : "bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-full shadow-lg font-bold min-w-[120px]";
+            const btn = document.getElementById('pauseBtn');
+            btn.innerText = isPaused ? "เล่นต่อ" : "หยุด";
+            btn.className = isPaused 
+                ? "bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-full shadow-lg font-bold text-lg min-w-[140px]"
+                : "bg-yellow-600 hover:bg-yellow-700 text-white px-8 py-4 rounded-full shadow-lg font-bold text-lg min-w-[140px]";
         }
 
         function skipSegment() {
@@ -383,18 +395,14 @@
 
         function resetSystem() {
             clearInterval(timerInterval);
-            // Force Clear UI
-            document.getElementById('timerScreen').classList.add('force-hidden');
-            document.getElementById('setupScreen').classList.remove('force-hidden');
-            
+            showSetupView(); // ใช้ฟังก์ชันบังคับเปลี่ยนหน้า
             resetStyles();
             
-            // Reload storage to restore original input values (in case Demo mode messed them up)
             if (isDemo) {
                 isDemo = false;
                 loadFromStorage();
             } else {
-                calculateTotalSetupTime(); // Recalculate based on existing inputs
+                calculateTotalSetupTime();
             }
         }
 
@@ -404,33 +412,33 @@
             document.getElementById('timerDisplay').innerText = "00:00";
             document.getElementById('globalTimerDisplay').innerText = "00:00:00";
             document.getElementById('progressBar').style.width = "0%";
+            
+            // Hide Note when finished
+            document.getElementById('displaySpecialNote').classList.add('hidden');
+            
             playAlarm();
         }
 
-        // --- Demo Mode ---
         function runDemo() {
             isDemo = true;
-            // Fake Data directly into inputs to visualize flow
-            // But we don't save this to storage
             document.getElementById('segmentCount').value = 2;
-            
-            // Manually populate UI for demo
             const container = document.getElementById('inputsContainer');
-            container.innerHTML = ''; // Clear current inputs temporarily
+            container.innerHTML = '';
             
-            // Create Demo Inputs Programmatically
-            // ... (Skipping full render for brevity, just pushing logic data)
-            
-            // Direct Start logic for Demo
+            // Set Demo Note
+            document.getElementById('specialNoteInput').value = "ตัวอย่าง: อย่าลืมสั่งการบ้านท้ายคาบ";
+
             segments = [
-                { name: "ตัวอย่าง: ขั้นนำ (เตือนเหลือง)", duration: 125, originalDuration: 125 }, // 2m 05s
-                { name: "ตัวอย่าง: สรุป (เตือนแดง)", duration: 35, originalDuration: 35 }    // 35s
+                { name: "ตัวอย่าง: ขั้นนำ (เตือนเหลือง)", duration: 125, originalDuration: 125 },
+                { name: "ตัวอย่าง: สรุป (เตือนแดง)", duration: 35, originalDuration: 35 }
             ];
 
-            // Switch UI
-            document.getElementById('setupScreen').classList.add('force-hidden');
-            document.getElementById('timerScreen').classList.remove('force-hidden');
+            // Manually show note for demo
+            const noteDisplay = document.getElementById('displaySpecialNote');
+            noteDisplay.innerText = "📝 ตัวอย่าง: อย่าลืมสั่งการบ้านท้ายคาบ";
+            noteDisplay.classList.remove('hidden');
 
+            showTimerView();
             currentSegmentIndex = 0;
             loadSegment(currentSegmentIndex);
         }
